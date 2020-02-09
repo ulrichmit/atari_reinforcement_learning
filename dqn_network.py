@@ -23,13 +23,13 @@ class DeepQCNN(nn.Module):
 
         # FullyConnected layers
         # Find input dim for fc1 layer
-        fc_input_dim = calc_fc_input_dim(self.input_dim)
+        fc_input_dim = self.calc_fc_input_dim(input_dim)
         
-        self.fc1 = nn.Linear(self.fc_input_dim, 512)
+        self.fc1 = nn.Linear(fc_input_dim, 512)
         self.fc2 = nn.Linear(512, num_actions)
         
         # optimizer
-        self.optimizer = optimizer.RMSprop(self.parameters, lr=learning_rate)
+        self.optimizer = optimizer.RMSprop(self.parameters(), lr=learning_rate)
 
         # Loss function
         self.loss = nn.MSELoss()
@@ -38,32 +38,32 @@ class DeepQCNN(nn.Module):
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
         
-def calc_fc_input_dim(self, input_dim):
-    dummy_state = T.zeros(1, *input_dim) # batch_size=1
-    dim = self.conv1(dummy_state)
-    dim = self.conv2(dim)
-    dim = self.conv3(dim)
-    # product of dim.size
-    return int(np.prod(dim.size()))
+    def calc_fc_input_dim(self, input_dim):
+        dummy_state = T.zeros(1, *input_dim) # batch_size=1
+        dim = self.conv1(dummy_state)
+        dim = self.conv2(dim)
+        dim = self.conv3(dim)
+        # product of dim.size
+        return int(np.prod(dim.size()))
 
-def forward(self, state):
-    conv1 = F.relu(self.conv1(state))
-    conv2 = F.relu(self.conv2(conv1))
-    conv3 = F.relu(self.conv3(conv2))
-    
-    # reshaping/flattening conv3 data for fc1 layer
-    # Shape conv3: batch_size * num_filters * H * W (H*W of the convolved im)
-    conv_reshaped = conv3.view(conv3.size()[0], -1) # view like np.reshape
-    # Shape conv_reshaped: batch_size * (num_filters * H * W)
+    def forward(self, state):
+        conv1 = F.relu(self.conv1(state))
+        conv2 = F.relu(self.conv2(conv1))
+        conv3 = F.relu(self.conv3(conv2))
+        
+        # reshaping/flattening conv3 data for fc1 layer
+        # Shape conv3: batch_size * num_filters * H * W (H*W of the convolved im)
+        conv_reshaped = conv3.view(conv3.size()[0], -1) # view like np.reshape
+        # Shape conv_reshaped: batch_size * (num_filters * H * W)
 
-    fc1 = F.relu(self.fc1(conv_reshaped))
-    actions = self.fc2(fc1)
-    return actions
+        fc1 = F.relu(self.fc1(conv_reshaped))
+        actions = self.fc2(fc1)
+        return actions
 
-def save_checkpoint(self):
-    print("Saving checkpoint...")
-    T.save(self.state_dict(), self.checkpoint_file)
+    def save_checkpoint(self):
+        print("Saving checkpoint...")
+        T.save(self.state_dict(), self.checkpoint_file)
 
-def load_checkpoint(self):
-    print("Loading checkpoint...")
-    self.load_state_dict(T.load(self.checkpoint_file))
+    def load_checkpoint(self):
+        print("Loading checkpoint...")
+        self.load_state_dict(T.load(self.checkpoint_file))
