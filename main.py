@@ -9,10 +9,10 @@ if __name__ == '__main__':
         
     #### Execution variables ####
     max_score = -math.inf # Intial max_score depends on game.(Pong --> - inf | Breakout --> 0))
-    train = True
+    train = False
     load_model = False
-    create_capture = False
-    num_games = 5 # training-episodes
+    create_capture = True
+    num_games = 400 # Training-episodes
     ####
 
     env = create_environment('PongNoFrameskip-v4')
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     if load_model:
         agent_dqn.load_network_checkpoints()
 
-    # training the agent    
+    # Training the agent    
     if train:
         figure_file_name = 'figures/' + agent_dqn.env_name + '_' + agent_dqn.algorithm + '_' \
             + str(num_games) + '_' + str(agent_dqn.learning_rate) + '.png'
@@ -62,7 +62,7 @@ if __name__ == '__main__':
             'max-score %.2f' % max_score, ' || epsilon %.2f' % agent_dqn.epsilon, 'num_steps', num_steps)
 
             if score > max_score:
-                max_score = score                
+                max_score = score # Possible improvemen - short moving max_score average           
                 agent_dqn.save_network_checkpoints()
         
         print("Training done!")

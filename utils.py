@@ -120,32 +120,34 @@ def create_environment(env_name, imshape=(84,84,1), repeat=4, clip_rewards=False
     env = FrameStacker(env, repeat)
     return env
 
-def plot_metrics(x, scores, epsilons, filename, lines=None):
+def plot_metrics(x, score_history, epsilon_history, filename, lines=None):
     '''
     Function for plotting the training metrics and saving the plot to figure.
+    Plots epsilons and scores over training-steps.
     '''
     print("Plotting metrics figure")
     fig=plt.figure()
     ax=fig.add_subplot(111, label="1")
     ax2=fig.add_subplot(111, label="2", frame_on=False)
 
-    ax.plot(x, epsilons, color="C2")
-    ax.set_xlabel("Training Steps", color="C2")
-    ax.set_ylabel("Epsilon", color="C2")
-    ax.tick_params(axis='x', colors="C2")
-    ax.tick_params(axis='y', colors="C2")
+    ax.plot(x, epsilon_history, color="r")
+    ax.set_xlabel("Training-Steps")
+    ax.set_ylabel("Epsilon [1]", color="r")
+    ax.tick_params(axis='x',)
+    ax.tick_params(axis='y', colors="r")
 
-    N = len(scores)
-    running_avg = np.empty(N)
-    for t in range(N):
-	    running_avg[t] = np.mean(scores[max(0, t-20):(t+1)])
+    # Plotting score with a running average over the last 20 scores
+    len_score_history = len(score_history)
+    running_avg = np.empty(len_score_history)
+    for i in range(len_score_history):
+	    running_avg[i] = np.mean(score_history[max(0, i-20):(i+1)])
 
-    ax2.scatter(x, running_avg, color="C0")
+    ax2.scatter(x, running_avg, color="g")
     ax2.axes.get_xaxis().set_visible(False)
     ax2.yaxis.tick_right()
-    ax2.set_ylabel('Score', color="C0")
+    ax2.set_ylabel('Score [1]', color="g")
     ax2.yaxis.set_label_position('right')
-    ax2.tick_params(axis='y', colors="C0")
+    ax2.tick_params(axis='y', colors="g")
 
     if lines is not None:
         for line in lines:
