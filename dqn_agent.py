@@ -4,10 +4,15 @@ from dqn_network import DeepQCNN
 from experience_buffer import ExperienceReplayBuffer
 
 class DQNAgent(object):
+    '''
+    Implementation of a reinforcement deep Q learning agent employing identical convolutional neural networks and updating weights between them.
+    One is used for learning the best parameters and the second one for predicting traget values for solving the bellman equation.
+    A Experience Replay buffer to sample from when learning is also used.
+    '''
     def __init__(self, gamma, epsilon, learning_rate, num_actions, input_dim,
                  memory_size, batch_size, eps_min=0.01, eps_dec=5e-7,
                  update=1000, algorithm=None, env_name=None,
-                 chkpt_dir='/plots'):
+                 chkpt_dir='/models'):
         self.gamma = gamma
         self.epsilon = epsilon
         self.learning_rate = learning_rate
@@ -20,10 +25,9 @@ class DQNAgent(object):
         self.algorithm = algorithm
         self.env_name = env_name
         self.chkpt_dir = chkpt_dir
-        self.action_space = [i for i in range(num_actions)] # for choosing
+        self.action_space = [i for i in range(num_actions)] # for choosing actions
         self.learn_step_count = 0 # to schedule updating the network weights
-
-        # Instatinating the memory and CNN's
+        
         self.memory_buffer = ExperienceReplayBuffer(memory_size, input_dim, num_actions)
 
         self.q_net_eval = DeepQCNN(self.learning_rate, self.num_actions,
@@ -37,13 +41,11 @@ class DQNAgent(object):
                                     checkpt_dir=self.chkpt_dir)
 
     def choose_action(self, observation):
-        # check greedy or exploratory
-        # random?????
-        if np.random.random() > self.epsilon:
-            current_state = T.tensor([observation], dtype=T.float).to(self.q_net_eval.device) # Add extra dim for batch size. Sending tensor to the device
+        if np.random.random() > self.epsilon: # Greedy
+            current_state = T.tensor([observation], dtype=T.float).to(self.q_net_eval.device) # Add extra dimension for batch size before sending tensor to the device
             actions = self.q_net_eval.forward(current_state)
             action = T.argmax(actions).item()
-        else:
+        else: # Exploratory
             action = np.random.choice(self.action_space)
 
         return action
@@ -53,20 +55,22 @@ class DQNAgent(object):
 
     def sample_memory(self):
         state, action, reward, new_state, done = self.memory_buffer.get_sample(self.batch_size)
-        # Converting numpy arrays into pytroch tensors and sending them to device
+        # Converting numpy arrays into pytorch tensors and sending them to device
         states = T.tensor(state).to(self.q_net_eval.device)        
         actions = T.tensor(action).to(self.q_net_eval.device)
         rewards = T.tensor(reward).to(self.q_net_eval.device)
         new_states = T.tensor(new_state).to(self.q_net_eval.device)        
         dones = T.tensor(done).to(self.q_net_eval.device)
 
-        return states, rewards, dones, actions, new_states
+        return states, actions, rewards, new_states, dones
 
     def save_network_checkpoints(self):
+        print("Saving model checkpoints...")
         self.q_net_eval.save_checkpoint()
         self.q_net_next.save_checkpoint()
 
     def load_network_checkpoints(self):
+        print("Loading model checkpoints...")
         self.q_net_eval.load_checkpoint()
         self.q_net_next.load_checkpoint()
 
@@ -78,31 +82,22 @@ class DQNAgent(object):
             self.q_net_next.load_state_dict(self.q_net_eval.state_dict()) # copy weights
 
     def learn_step(self):
-        # Wait until the number of samples in the buffer is bigger than bs
-        if self.learn_step_count < self.batch_size:
+        if self.memory_buffer.memory_count < self.batch_size:
             return
-        
-        self.update_target_network() # To have the newset parameters in the target network
+
         self.q_net_eval.optimizer.zero_grad()
+        self.update_target_network() # Get newest parameters into the target network
 
-        # sample from the memory
         states, actions, rewards, new_states, dones = self.sample_memory()
-
-        # Calculation of the Q_pred and q_target (q_next) valuess
-        # We don't just want to knwo the action values for the batch of states
-        # We want the value value of the action the agent took in those states. Just the one value! Thus we have to index it correct out from the nn output
         
-        # used for indexing the actions from the nn ouput
-        # Array of numbers in ragne of 0 - 31
+        # Array of numbers in range of 0 - 31. Used for indexing the actions from the q_net_eval ouput
         indices = np.arange(self.batch_size) 
-        # Getting just an array of shape batch_size with the action values taken
-        q_pred = self.q_net_eval.forward(states)[indices, actions]
 
-        # Getting the values for the maximum actions for the set of new_states
-        q_next = self.q_net_next.forward(new_states).max(dim=1)[0] # 0 for values
+        q_pred = self.q_net_eval.forward(states)[indices, actions]
+        q_next = self.q_net_next.forward(new_states).max(dim=1)[0] 
 
         # calculating the  target value
-        # using the done flag for a mask to make condition if the next state was terminal and thus the q_next should be 0. Thus the target value should just be equal to rewards
+        # Using the done flag for a mask to make conditions if the next state was terminal
         q_next[dones] = 0.0
         q_target = rewards + self.gamma*q_next
 
